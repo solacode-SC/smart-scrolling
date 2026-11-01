@@ -1,0 +1,20 @@
+FROM node:24-alpine AS base
+RUN corepack enable && corepack prepare pnpm@12.16.1 --activate
+WORKDIR /app
+
+FROM base AS builder
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY packages ./packages
+COPY workers/sync-worker ./workers/sync-worker
+RUN pnpm install --frozen-lockfile
+RUN pnpm --filter @socialhub/database db:generate
+RUN pnpm --filter @socialhub/shared build
+RUN pnpm --filter @socialhub/connectors build
+RUN pnpm --filter @socialhub/database build
+RUN pnpm --filter @socialhub/sync-worker build
+
+FROM base AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=builder /app ./
+CMD ["node", "workers/sync-worker/dist/index.js"]

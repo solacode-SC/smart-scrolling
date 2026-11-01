@@ -1,0 +1,407 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Platform {
+  YOUTUBE
+  REDDIT
+  RSS
+  X
+  TIKTOK
+  INSTAGRAM
+  FACEBOOK
+  LINKEDIN
+}
+
+model User {
+  id                        String              @id @default(uuid())
+  email                     String              @unique
+  name                      String
+  passwordHash              String
+  avatarUrl                 String?
+  emailVerified             Boolean             @default(false)
+  emailVerificationToken    String?
+  emailVerificationExpires DateTime?
+  passwordResetToken        String?
+  passwordResetExpires      DateTime?
+  deletedAt                 DateTime?
+  createdAt                 DateTime            @default(now())
+  updatedAt                 DateTime            @updatedAt
+
+  sessions                  Session[]
+  preference                UserPreference?
+  connectedAccounts         ConnectedAccount[]
+  ownedFeeds                Feed[]              @relation("FeedOwner")
+  feedMemberships           FeedMember[]
+  bookmarks                 Bookmark[]
+  bookmarkCollections       BookmarkCollection[]
+  postInteractions          PostInteraction[]
+  notifications             Notification[]
+  auditLogs                 AuditLog[]
+
+  @@index([email])
+  @@index([deletedAt])
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  userAgent String?
+  ipAddress String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("sessions")
+}
+
+model UserPreference {
+  id                   String   @id @default(uuid())
+  userId               String   @unique
+  theme                String   @default("system")
+  font                 String   @default("Geist")
+  fontSize             String   @default("M")
+  feedDensity          String   @default("comfortable")
+  cardStyle            String   @default("standard")
+  contentWidth         String   @default("standard")
+  defaultSort          String   @default("newest")
+  autoplay             Boolean  @default(false)
+  embedLoading         String   @default("click-to-load")
+  sidebarState         String   @default("expanded")
+  syncEnabled          Boolean  @default(true)
+  syncIntervalMinutes  Int      @default(30)
+  notificationsEnabled Boolean  @default(true)
+  updatedAt            DateTime @updatedAt
+
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_preferences")
+}
+
+model PlatformMeta {
+  id           String    @id @default(uuid())
+  platform     Platform  @unique
+  displayName  String
+  description  String
+  state        String    @default("SUPPORTED")
+  capabilities String[]
+  iconSvg      String?
+  authConfig   Json?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@map("platform_meta")
+}
+
+model ConnectedAccount {
+  id                String             @id @default(uuid())
+  userId            String
+  platform          Platform
+  externalAccountId String
+  username          String
+  displayName       String?
+  profileUrl        String
+  avatarUrl         String?
+  description       String?
+  category          String?
+  isEnabled         Boolean            @default(true)
+  syncStatus        String             @default("IDLE")
+  lastSyncAt        DateTime?
+  nextSyncAt        DateTime?
+  lastError         String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  credential        AccountCredential?
+  posts             Post[]
+  syncJobs          SyncJob[]
+  syncCursor        SyncCursor?
+  feedSources       FeedSource[]
+
+  @@unique([userId, platform, externalAccountId])
+  @@index([userId])
+  @@index([platform])
+  @@index([isEnabled])
+  @@index([nextSyncAt])
+  @@map("connected_accounts")
+}
+
+model AccountCredential {
+  id                 String           @id @default(uuid())
+  connectedAccountId String           @unique
+  encryptedData      String
+  iv                 String
+  tag                String
+  expiresAt          DateTime?
+  scopes             String[]
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  connectedAccount   ConnectedAccount @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
+
+  @@map("account_credentials")
+}
+
+model Post {
+  id                 String            @id @default(uuid())
+  platform           Platform
+  externalId         String
+  connectedAccountId String
+  type               String            @default("TEXT")
+  title              String?
+  text               String?
+  caption            String?
+  originalUrl        String
+  embedUrl           String?
+  thumbnailUrl       String?
+  publishedAt        DateTime
+  authorUsername     String
+  authorDisplayName  String?
+  authorAvatarUrl    String?
+  engagement         Json?
+  rawMetadata        Json?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  connectedAccount   ConnectedAccount  @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
+  media              PostMedia[]
+  bookmarks          Bookmark[]
+  interactions       PostInteraction[]
+
+  @@unique([platform, externalId])
+  @@index([publishedAt(sort: Desc)])
+  @@index([platform])
+  @@index([connectedAccountId])
+  @@map("posts")
+}
+
+model PostMedia {
+  id        String   @id @default(uuid())
+  postId    String
+  type      String   @default("IMAGE")
+  url       String?
+  embedUrl  String?
+  width     Int?
+  height    Int?
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@map("post_media")
+}
+
+model Feed {
+  id                String           @id @default(uuid())
+  ownerId           String
+  name              String
+  description       String?
+  visibility        String           @default("PRIVATE")
+  allowDirectFollow Boolean          @default(true)
+  inviteCode        String?          @unique
+  isDeleted         Boolean          @default(false)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  owner             User             @relation("FeedOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  sources           FeedSource[]
+  members           FeedMember[]
+  invitations       FeedInvitation[]
+
+  @@index([ownerId])
+  @@index([visibility])
+  @@index([isDeleted])
+  @@map("feeds")
+}
+
+model FeedSource {
+  id                 String           @id @default(uuid())
+  feedId             String
+  connectedAccountId String
+  createdAt          DateTime         @default(now())
+
+  feed               Feed             @relation(fields: [feedId], references: [id], onDelete: Cascade)
+  connectedAccount   ConnectedAccount @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
+
+  @@unique([feedId, connectedAccountId])
+  @@index([feedId])
+  @@index([connectedAccountId])
+  @@map("feed_sources")
+}
+
+model FeedMember {
+  id        String   @id @default(uuid())
+  feedId    String
+  userId    String
+  role      String   @default("MEMBER")
+  status    String   @default("PENDING")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  feed      Feed     @relation(fields: [feedId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([feedId, userId])
+  @@index([feedId])
+  @@index([userId])
+  @@index([status])
+  @@map("feed_members")
+}
+
+model FeedInvitation {
+  id        String    @id @default(uuid())
+  feedId    String
+  email     String?
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  feed      Feed      @relation(fields: [feedId], references: [id], onDelete: Cascade)
+
+  @@index([feedId])
+  @@index([token])
+  @@map("feed_invitations")
+}
+
+model Bookmark {
+  id           String              @id @default(uuid())
+  userId       String
+  postId       String
+  collectionId String?
+  notes        String?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post         Post                @relation(fields: [postId], references: [id], onDelete: Cascade)
+  collection   BookmarkCollection? @relation(fields: [collectionId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, postId])
+  @@index([userId])
+  @@index([postId])
+  @@index([collectionId])
+  @@index([createdAt(sort: Desc)])
+  @@map("bookmarks")
+}
+
+model BookmarkCollection {
+  id          String     @id @default(uuid())
+  userId      String
+  name        String
+  description String?
+  color       String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookmarks   Bookmark[]
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@map("bookmark_collections")
+}
+
+model PostInteraction {
+  id        String    @id @default(uuid())
+  userId    String
+  postId    String
+  isRead    Boolean   @default(false)
+  readAt    DateTime?
+  isHidden  Boolean   @default(false)
+  hiddenAt  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@index([userId])
+  @@index([postId])
+  @@map("post_interactions")
+}
+
+model SyncJob {
+  id                 String           @id @default(uuid())
+  connectedAccountId String
+  status             String           @default("PENDING")
+  attempt            Int              @default(0)
+  postsDiscovered    Int              @default(0)
+  postsImported      Int              @default(0)
+  durationMs         Int?
+  errorMessage       String?
+  errorStack         String?
+  startedAt          DateTime?
+  completedAt        DateTime?
+  createdAt          DateTime         @default(now())
+
+  connectedAccount   ConnectedAccount @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
+
+  @@index([connectedAccountId])
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
+  @@map("sync_jobs")
+}
+
+model SyncCursor {
+  id                 String           @id @default(uuid())
+  connectedAccountId String           @unique
+  cursor             String?
+  lastSyncedAt       DateTime?
+  updatedAt          DateTime         @updatedAt
+
+  connectedAccount   ConnectedAccount @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
+
+  @@map("sync_cursors")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String
+  title     String
+  message   String
+  link      String?
+  isRead    Boolean  @default(false)
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt(sort: Desc)])
+  @@map("notifications")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  action     String
+  entityType String
+  entityId   String?
+  ipAddress  String?
+  userAgent  String?
+  details    Json?
+  createdAt  DateTime @default(now())
+
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt(sort: Desc)])
+  @@map("audit_logs")
+}

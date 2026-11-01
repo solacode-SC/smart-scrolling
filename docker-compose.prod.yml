@@ -1,0 +1,73 @@
+services:
+  postgres:
+    restart: always
+    ports: [] # Postgres is internal only in production
+    networks:
+      - socialhub_net
+
+  redis:
+    restart: always
+    ports: [] # Redis is internal only in production
+    networks:
+      - socialhub_net
+
+  api:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.api
+    container_name: socialhub-api
+    restart: always
+    environment:
+      NODE_ENV: production
+      PORT: 9901
+      API_PORT: 9901
+      APP_URL: ${APP_URL:-http://localhost:9900}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-socialhub}:${POSTGRES_PASSWORD:-socialhub_secret}@postgres:5432/${POSTGRES_DB:-socialhub}?schema=public
+      REDIS_URL: redis://redis:6379
+      AUTH_SECRET: ${AUTH_SECRET}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+    ports:
+      - "127.0.0.1:${API_PORT:-9901}:9901"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - socialhub_net
+
+  web:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.web
+    container_name: socialhub-web
+    restart: always
+    environment:
+      NODE_ENV: production
+      PORT: 9900
+      NEXT_PUBLIC_API_URL: ${API_URL:-http://localhost:9901}/api/v1
+    ports:
+      - "127.0.0.1:${WEB_PORT:-9900}:9900"
+    depends_on:
+      - api
+    networks:
+      - socialhub_net
+
+  sync-worker:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.worker
+    container_name: socialhub-sync-worker
+    restart: always
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-socialhub}:${POSTGRES_PASSWORD:-socialhub_secret}@postgres:5432/${POSTGRES_DB:-socialhub}?schema=public
+      REDIS_URL: redis://redis:6379
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - socialhub_net

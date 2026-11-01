@@ -1,0 +1,27 @@
+{
+  "name": "@socialhub/sync-worker",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "rm -rf dist",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@socialhub/connectors": "workspace:*",
+    "@socialhub/database": "workspace:*",
+    "@socialhub/shared": "workspace:*",
+    "bullmq": "^5.41.5",
+    "ioredis": "^5.5.0"
+  },
+  "devDependencies": {
+    "@socialhub/config": "workspace:*",
+    "@types/node": "^22.13.9",
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.3"
+  }
+}
