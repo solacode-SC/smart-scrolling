@@ -1,19 +1,20 @@
-"use client";
+'use client';
 
-import React from "react";
-import { usePathname } from "next/navigation";
-import { Newspaper, Compass, Bookmark, Layers, Settings } from "lucide-react";
-import { cn } from "@/lib/utils";
+import React from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { Newspaper, Compass, Bookmark, Layers, Settings } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export function MobileNav() {
   const pathname = usePathname();
 
   const navItems = [
-    { label: "Feed", href: "/app/feed", icon: Newspaper },
-    { label: "Discover", href: "/app/discover", icon: Compass },
-    { label: "Bookmarks", href: "/app/bookmarks", icon: Bookmark },
-    { label: "Following", href: "/app/following", icon: Layers },
-    { label: "Settings", href: "/app/settings/profile", icon: Settings },
+    { label: 'Feed', href: '/app/feed', icon: Newspaper },
+    { label: 'Discover', href: '/app/discover', icon: Compass },
+    { label: 'Bookmarks', href: '/app/bookmarks', icon: Bookmark },
+    { label: 'Following', href: '/app/following', icon: Layers },
+    { label: 'Settings', href: '/app/settings/profile', icon: Settings },
   ];
 
   return (
@@ -23,22 +24,22 @@ export function MobileNav() {
           const Icon = item.icon;
           const isActive =
             pathname === item.href ||
-            (item.href !== "/app/feed" && pathname?.startsWith(item.href));
+            (item.href !== '/app/feed' && pathname?.startsWith(item.href));
 
           return (
-            <a
+            <Link
               key={item.href}
               href={item.href}
               className={cn(
-                "flex flex-col items-center justify-center py-1 px-3 text-[11px] font-medium transition-colors",
+                'flex flex-col items-center justify-center py-1 px-3 text-[11px] font-medium transition-colors',
                 isActive
-                  ? "text-primary font-semibold"
-                  : "text-muted-foreground hover:text-foreground",
+                  ? 'text-primary font-semibold'
+                  : 'text-muted-foreground hover:text-foreground',
               )}
             >
               <Icon className="h-5 w-5 mb-1" />
               <span>{item.label}</span>
-            </a>
+            </Link>
           );
         })}
       </div>

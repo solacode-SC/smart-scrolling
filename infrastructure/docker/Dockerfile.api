@@ -19,3 +19,4 @@ ENV NODE_ENV=production
 COPY --from=builder /app ./
 EXPOSE 9901
 CMD ["node", "apps/api/dist/main.js"]
+

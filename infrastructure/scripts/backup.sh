@@ -11,3 +11,4 @@ echo "Creating database backup: $FILENAME"
 docker compose exec -T postgres pg_dump -U "${POSTGRES_USER:-socialhub}" "${POSTGRES_DB:-socialhub}" | gzip > "$FILENAME"
 
 echo "Backup created successfully: $FILENAME"
+

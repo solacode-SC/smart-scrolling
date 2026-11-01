@@ -16,3 +16,4 @@ ENV NODE_ENV=production
 COPY --from=builder /app ./
 EXPOSE 9900
 CMD ["pnpm", "--filter", "@socialhub/web", "start"]
+

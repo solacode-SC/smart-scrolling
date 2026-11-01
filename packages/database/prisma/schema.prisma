@@ -405,3 +405,4 @@ model AuditLog {
   @@index([createdAt(sort: Desc)])
   @@map("audit_logs")
 }
+

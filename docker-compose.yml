@@ -45,3 +45,4 @@ networks:
   socialhub_net:
     name: socialhub_network
     driver: bridge
+

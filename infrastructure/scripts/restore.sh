@@ -17,3 +17,4 @@ echo "Restoring database from: $BACKUP_FILE"
 gunzip -c "$BACKUP_FILE" | docker compose exec -T postgres psql -U "${POSTGRES_USER:-socialhub}" -d "${POSTGRES_DB:-socialhub}"
 
 echo "Database restored successfully."
+

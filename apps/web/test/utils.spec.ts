@@ -18,3 +18,4 @@ describe('Web Utilities', () => {
     expect(formatDate(twoHoursAgo)).toBe('2h ago');
   });
 });
+
